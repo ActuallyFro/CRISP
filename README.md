@@ -1,6 +1,8 @@
 CSV Rendered Into a Swatch Palette
 ==================================
 
+Use Current Version: [HERE](https://actuallyfro.github.io/CRISP/CRISP.html)
+
 ## How to Use
 
 1. Open the SPA in your browser.
@@ -14,7 +16,7 @@ Each swatch shows the **category name** and **hex code**, with text color automa
 
 ## Screenshot
 
-![Example Palette](images/default-palette.png)
+![Example Palette](images/default-palette.png)  
 *This shows a rendered palette from the example CSV.*
 
 ---
