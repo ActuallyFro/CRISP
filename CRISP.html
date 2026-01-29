@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>CRISP - CSV Rendered Into a Swatch Palette</title>
+<style>
+  body {
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 20px;
+  }
+
+  h1 {
+    margin-bottom: 8px;
+  }
+
+  p {
+    color: #555;
+    max-width: 900px;
+  }
+
+  textarea {
+    width: 100%;
+    height: 200px;
+    font-family: Consolas, monospace;
+    font-size: 14px;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+  }
+
+  button {
+    margin-top: 12px;
+    padding: 10px 18px;
+    font-size: 15px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: #005ea2;
+    color: white;
+  }
+
+  button:hover {
+    background: #004b82;
+  }
+
+  .palette {
+    margin-top: 30px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+  }
+
+  .swatch {
+    display: flex;
+    align-items: center;
+    padding: 18px 20px;
+    font-size: 16px;
+  }
+
+  .category {
+    font-weight: 600;
+    flex: 2;
+  }
+
+  .hex {
+    flex: 1;
+    text-align: right;
+    font-family: Consolas, monospace;
+    opacity: 0.9;
+  }
+
+  /* Dark Mode Styles */
+  body.dark-mode {
+    background: #1e1e1e;
+    color: #e0e0e0;
+  }
+  body.dark-mode p {
+    color: #b0b0b0;
+  }
+  body.dark-mode textarea {
+    background: #2d2d2d;
+    color: #f8f8f8;
+    border-color: #444;
+  }
+  body.dark-mode h1 {
+    color: #ffffff;
+  }
+
+  .controls {
+    margin-top: 15px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .controls label {
+    cursor: pointer;
+    font-size: 14px;
+    user-select: none;
+  }
+
+  /* Toast Notification */
+  .toast {
+    visibility: hidden;
+    min-width: 250px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 16px;
+    position: fixed;
+    z-index: 1000;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 30px;
+    font-size: 16px;
+    opacity: 0;
+    transition: opacity 0.3s, bottom 0.3s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+
+  .toast.show {
+    visibility: visible;
+    opacity: 1;
+    bottom: 50px;
+  }
+</style>
+</head>
+<body>
+
+<h1>CRISP -CSV Rendered Into a Swatch Palette</h1>
+<p>
+Paste your <strong>CSV</strong> below (<code>Category,Hex</code>) and render it as a
+paint-strip style color test. Useful for accessibility, contrast, and gut-checking palettes.
+</p>
+
+<textarea id="csvInput">
+Pizza,#E74C3C
+Sushi,#3498DB
+Tacos,#F39C12
+Pasta,#9B59B6
+Burgers,#1ABC9C
+Salads,#2ECC71
+Desserts,#E67E22
+</textarea>
+
+<br />
+<div class="controls">
+  <button onclick="renderPalette()">Render Palette</button>
+  <button onclick="copyPalette()">Copy for Email</button>
+  <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+  
+  <div style="border-left: 1px solid #ccc; padding-left: 15px; display: flex; gap: 10px; align-items: center;">
+    <strong>Text Color:</strong>
+    <label><input type="radio" name="textColor" value="auto" checked onchange="renderPalette()"> Auto</label>
+    <label><input type="radio" name="textColor" value="black" onchange="renderPalette()"> Black</label>
+    <label><input type="radio" name="textColor" value="white" onchange="renderPalette()"> White</label>
+  </div>
+</div>
+
+<div id="output"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+// Load saved data and theme on startup
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('crisp_csv_data');
+  if (saved) {
+    document.getElementById("csvInput").value = saved;
+  }
+  
+  // Save data on change
+  document.getElementById("csvInput").addEventListener('input', (e) => {
+    localStorage.setItem('crisp_csv_data', e.target.value);
+  });
+
+  // Restore dark mode
+  if (localStorage.getItem('crisp_dark_mode') === 'true') {
+    document.body.classList.add('dark-mode');
+  }
+
+  // Initial render
+  renderPalette();
+});
+
+function toggleDarkMode() {
+  document.body.classList.toggle('dark-mode');
+  localStorage.setItem('crisp_dark_mode', document.body.classList.contains('dark-mode'));
+}
+
+function renderPalette() {
+  const input = document.getElementById("csvInput").value.trim();
+  const lines = input.split("\n").slice(1); // skip header
+  const container = document.getElementById("output");
+  container.innerHTML = "";
+  
+  const textColorMode = document.querySelector('input[name="textColor"]:checked')?.value || 'auto';
+
+  if (!lines.length) return;
+
+  // Use a table for "rich text" copy compatibility
+  const table = document.createElement("table");
+  table.className = "palette";
+  // Inline styles are best for email copy-paste
+  table.style.width = "600px"; // Fixed width for email compatibility
+  table.style.borderCollapse = "collapse";
+  table.style.fontFamily = "inherit"; 
+
+  lines.forEach(line => {
+    const parts = line.split(",");
+    if (parts.length < 2) return;
+
+    const category = parts[0].trim();
+    const hex = parts[1].trim();
+    
+    let contrast;
+    if (textColorMode === 'black') contrast = "#000000";
+    else if (textColorMode === 'white') contrast = "#FFFFFF";
+    else contrast = getContrastColor(hex);
+
+    const tr = document.createElement("tr");
+    tr.style.background = hex;
+    tr.style.color = contrast;
+
+    // Category Cell
+    const tdCat = document.createElement("td");
+    tdCat.textContent = category;
+    tdCat.className = "category"; // Keep class for potential external CSS usage
+    // Inline styles for copying
+    tdCat.style.padding = "18px 20px";
+    tdCat.style.fontWeight = "600";
+    tdCat.style.fontSize = "16px";
+
+    // Hex Cell
+    const tdHex = document.createElement("td");
+    tdHex.textContent = hex;
+    tdHex.className = "hex";
+    // Inline styles for copying
+    tdHex.style.padding = "18px 20px";
+    tdHex.style.textAlign = "right";
+    tdHex.style.fontFamily = "Consolas, monospace";
+    tdHex.style.opacity = "0.9";
+    tdHex.style.fontSize = "16px";
+
+    tr.appendChild(tdCat);
+    tr.appendChild(tdHex);
+    table.appendChild(tr);
+  });
+
+  container.appendChild(table);
+}
+
+function copyPalette() {
+  const container = document.getElementById("output");
+  const table = container.querySelector("table");
+  
+  if (!table) {
+    alert("Please render the palette first.");
+    return;
+  }
+
+  const range = document.createRange();
+  range.selectNode(table);
+  window.getSelection().removeAllRanges();
+  window.getSelection().addRange(range);
+
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) {
+      showToast("Table copied to clipboard!");
+    } else {
+      alert("Copy failed. Please try manually selecting and copying.");
+    }
+  } catch (err) {
+    console.error('Copy error', err);
+    alert("Copy failed.");
+  }
+
+  window.getSelection().removeAllRanges();
+}
+
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  toast.innerText = message;
+  toast.className = "toast show";
+  setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+}
+
+// WCAG-ish contrast check
+function getContrastColor(hex) {
+  const rgb = hex.replace("#","").match(/.{2}/g).map(v => parseInt(v, 16));
+  const luminance = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+  return luminance > 0.6 ? "#000000" : "#FFFFFF";
+}
+</script>
+
+</body>
+</html>
