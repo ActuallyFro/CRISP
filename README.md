@@ -14,7 +14,7 @@ Each swatch shows the **category name** and **hex code**, with text color automa
 
 ## Screenshot
 
-![Example Palette](screenshot.png)  
+![Example Palette](images/default-palette.png)
 *This shows a rendered palette from the example CSV.*
 
 ---
